@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Parking System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script>
+        window.parkingStateVersion = "{{ data.state_version }}";
+        async function pollParkingState() {
+            try {
+                const response = await fetch("/state", { cache: "no-store" });
+                if (!response.ok) return;
+                const data = await response.json();
+                if (data.state_version !== window.parkingStateVersion) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.debug("State poll failed", error);
+            }
+        }
+        setInterval(pollParkingState, 3000);
+    </script>
+</head>
+<body>
+    <div class="page">
+        <section class="hero">
+            <div>
+                <p class="eyebrow">Embedded Systems Project</p>
+                <h1>Smart Parking Control Panel</h1>
+                <p class="subtext">Book a slot, verify vehicle plate at the gate, and control entry using Arduino Nano.</p>
+            </div>
+            <div class="stats">
+                <div class="card">
+                    <span>Total Slots</span>
+                    <strong>{{ data.total }}</strong>
+                </div>
+                <div class="card">
+                    <span>Available</span>
+                    <strong>{{ data.available }}</strong>
+                </div>
+                <div class="card">
+                    <span>Occupied</span>
+                    <strong>{{ data.occupied }}</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel-grid">
+            <div class="panel">
+                <h2>Book Parking Slot</h2>
+                <form method="POST" action="/book">
+                    <label>Name</label>
+                    <input type="text" name="owner_name" placeholder="Enter owner name">
+
+                    <label>Phone</label>
+                    <input type="text" name="phone" placeholder="Optional phone number">
+
+                    <label>Car Number</label>
+                    <input type="text" name="plate_number" placeholder="e.g. MH12AB1234">
+
+                    <button type="submit">Book Slot</button>
+                </form>
+
+                <form method="POST" action="/simulate-gate" class="secondary-form">
+                    <button type="submit" class="secondary">Simulate Gate Check</button>
+                </form>
+
+                <!--
+                <h2>Manual Arduino Test</h2>
+                <form method="POST" action="/manual-command" class="secondary-form">
+                    <input type="hidden" name="command" value="OPEN:S1">
+                    <button type="submit" class="secondary">Test OPEN:S1</button>
+                </form>
+                <form method="POST" action="/manual-command" class="secondary-form">
+                    <input type="hidden" name="command" value="FULL">
+                    <button type="submit" class="secondary">Test FULL</button>
+                </form>
+                <form method="POST" action="/manual-command" class="secondary-form">
+                    <input type="hidden" name="command" value="DENY">
+                    <button type="submit" class="secondary">Test DENY</button>
+                </form>
+                <form method="POST" action="/manual-command" class="secondary-form">
+                    <input type="hidden" name="command" value="STATUS">
+                    <button type="submit" class="secondary">Refresh LCD Status</button>
+                </form>
+                -->
+
+                {% if message %}
+                    <div class="message {{ 'ok' if success else 'error' }}">{{ message }}</div>
+                {% endif %}
+            </div>
+
+            <div class="panel">
+                <h2>Live Gate Status</h2>
+                <div class="status-box">{{ bridge_status }}</div>
+
+                <h2>Slot Status</h2>
+                <div class="slots">
+                    {% for slot, plate in data.slots.items() %}
+                        <div class="slot {{ 'taken' if plate else 'free' }}">
+                            <strong>{{ slot }}</strong>
+                            <span>{{ plate if plate else 'FREE' }}</span>
+                            {% if plate %}
+                                <form method="POST" action="/release-slot" class="secondary-form">
+                                    <input type="hidden" name="slot" value="{{ slot }}">
+                                    <button type="submit" class="secondary">Empty Slot</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>Recent Bookings</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Plate Number</th>
+                        <th>Owner</th>
+                        <th>Slot</th>
+                        <th>Created At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for plate, booking in data.bookings.items() %}
+                        <tr>
+                            <td>{{ plate }}</td>
+                            <td>{{ booking.owner_name }}</td>
+                            <td>{{ booking.slot }}</td>
+                            <td>{{ booking.created_at }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="4">No bookings yet.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </div>
+</body>
+</html>

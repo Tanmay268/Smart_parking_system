@@ -1,0 +1,7 @@
+.vscode/
+node_modules/
+*.o
+*.elf
+*.bin
+*.hex
+.git/
