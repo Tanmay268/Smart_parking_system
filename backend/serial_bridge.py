@@ -3,9 +3,14 @@ import time
 
 import serial
 
-from config import BAUD_RATE, CAMERA_INDEX, SERIAL_PORT
-from plate_recognition import NumberPlateRecognizer
-from storage import auto_book_if_available, dashboard_data, release_booking_by_plate
+try:
+    from .config import BAUD_RATE, CAMERA_INDEX, SERIAL_PORT
+    from .plate_recognition import NumberPlateRecognizer
+    from .storage import auto_book_if_available, dashboard_data, release_booking_by_plate
+except ImportError:
+    from config import BAUD_RATE, CAMERA_INDEX, SERIAL_PORT
+    from plate_recognition import NumberPlateRecognizer
+    from storage import auto_book_if_available, dashboard_data, release_booking_by_plate
 
 
 class ArduinoBridge:

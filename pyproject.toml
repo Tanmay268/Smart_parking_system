@@ -1,0 +1,8 @@
+[project]
+name = "smart-parking-system"
+version = "0.1.0"
+description = "Smart parking system with Vercel-hosted Flask dashboard"
+requires-python = ">=3.11"
+
+[project.scripts]
+app = "backend.app:app"

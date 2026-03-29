@@ -6,7 +6,10 @@ from pathlib import Path
 import cv2
 import easyocr
 
-from config import CAPTURES_DIR, CAMERA_WARMUP_FRAMES, PREVIEW_DURATION_MS, SHOW_CAMERA_PREVIEW
+try:
+    from .config import CAPTURES_DIR, CAMERA_WARMUP_FRAMES, PREVIEW_DURATION_MS, SHOW_CAMERA_PREVIEW
+except ImportError:
+    from config import CAPTURES_DIR, CAMERA_WARMUP_FRAMES, PREVIEW_DURATION_MS, SHOW_CAMERA_PREVIEW
 
 
 class NumberPlateRecognizer:

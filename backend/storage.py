@@ -1,30 +1,53 @@
+import asyncio
 import json
 import os
 from datetime import datetime
 
-from config import DATA_FILE, TOTAL_SLOTS
+try:
+    from vercel.blob import AsyncBlobClient
+except ImportError:
+    AsyncBlobClient = None
+
+try:
+    from .config import BLOB_DATA_PATH, DATA_FILE, TOTAL_SLOTS
+except ImportError:
+    from config import BLOB_DATA_PATH, DATA_FILE, TOTAL_SLOTS
+
+
+USE_BLOB_STORAGE = bool(os.getenv("BLOB_READ_WRITE_TOKEN")) and AsyncBlobClient is not None
 
 
 def _ensure_data_file():
+    if USE_BLOB_STORAGE:
+        return
     os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
     if not os.path.exists(DATA_FILE):
-        save_data(
-            {
-                "slots": {slot: None for slot in TOTAL_SLOTS},
-                "bookings": {},
-                "events": [],
-            }
-        )
+        save_data(default_data())
+
+
+def default_data():
+    return {
+        "slots": {slot: None for slot in TOTAL_SLOTS},
+        "bookings": {},
+        "events": [],
+    }
 
 
 def load_data():
     _ensure_data_file()
-    with open(DATA_FILE, "r", encoding="utf-8") as file:
-        data = json.load(file)
+    if USE_BLOB_STORAGE:
+        data = _load_blob_data()
+    else:
+        with open(DATA_FILE, "r", encoding="utf-8") as file:
+            data = json.load(file)
     return normalize_data(data)
 
 
 def save_data(data):
+    if USE_BLOB_STORAGE:
+        _save_blob_data(data)
+        return
+
     os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
     with open(DATA_FILE, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=2)
@@ -32,6 +55,49 @@ def save_data(data):
 
 def current_timestamp():
     return datetime.now().isoformat(timespec="seconds")
+
+
+def _run_async(coro):
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    raise RuntimeError("Blob storage helpers cannot run inside an active event loop.")
+
+
+def _load_blob_data():
+    async def _load():
+        client = AsyncBlobClient()
+        result = await client.get(BLOB_DATA_PATH, access="private")
+        if result is None or result.status_code != 200 or result.stream is None:
+            return None
+
+        chunks = []
+        async for chunk in result.stream:
+            chunks.append(chunk)
+        return json.loads(b"".join(chunks).decode("utf-8"))
+
+    data = _run_async(_load())
+    if data is None:
+        data = default_data()
+        _save_blob_data(data)
+    return data
+
+
+def _save_blob_data(data):
+    payload = json.dumps(data, indent=2).encode("utf-8")
+
+    async def _save():
+        client = AsyncBlobClient()
+        await client.put(
+            BLOB_DATA_PATH,
+            payload,
+            access="private",
+            content_type="application/json",
+            overwrite=True,
+        )
+
+    _run_async(_save())
 
 
 def normalize_data(data):

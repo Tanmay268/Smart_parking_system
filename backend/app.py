@@ -1,15 +1,62 @@
-from flask import Flask, jsonify, redirect, render_template, request, url_for
+import os
 
-from serial_bridge import bridge
-from storage import create_booking, dashboard_data, release_booking_by_slot
+from flask import Flask, abort, jsonify, redirect, render_template, request, url_for
+
+try:
+    from .config import BRIDGE_API_KEY
+    from .storage import auto_book_if_available, create_booking, dashboard_data, release_booking_by_plate, release_booking_by_slot
+except ImportError:
+    from config import BRIDGE_API_KEY
+    from storage import auto_book_if_available, create_booking, dashboard_data, release_booking_by_plate, release_booking_by_slot
+
+
+class NullBridge:
+    last_event = "Cloud mode active. Run backend/cloud_bridge.py near Arduino and LCD."
+
+    def send_status(self):
+        return None
+
+    def start(self):
+        return None
+
+    def handle_vehicle_at_gate(self):
+        return None
+
+
+if os.getenv("VERCEL"):
+    bridge = NullBridge()
+else:
+    try:
+        from .serial_bridge import bridge
+    except ImportError:
+        from serial_bridge import bridge
 
 
 app = Flask(__name__)
 
 
+def static_css_url():
+    if os.getenv("VERCEL"):
+        return "/styles.css"
+    return url_for("static", filename="styles.css")
+
+
+def require_bridge_key():
+    if not BRIDGE_API_KEY:
+        return
+    provided_key = request.headers.get("X-Bridge-Key", "")
+    if provided_key != BRIDGE_API_KEY:
+        abort(401)
+
+
 @app.route("/", methods=["GET"])
 def home():
-    return render_template("index.html", data=dashboard_data(), bridge_status=bridge.last_event)
+    return render_template(
+        "index.html",
+        data=dashboard_data(),
+        bridge_status=bridge.last_event,
+        static_css_url=static_css_url(),
+    )
 
 
 @app.route("/state", methods=["GET"])
@@ -29,6 +76,64 @@ def state():
     )
 
 
+@app.route("/api/gate/entry", methods=["POST"])
+def gate_entry():
+    require_bridge_key()
+    payload = request.get_json(silent=True) or request.form
+    plate_number = (payload.get("plate_number", "") or "").strip()
+    if not plate_number:
+        return jsonify({"action": "DENY", "message": "Plate number is required."}), 400
+
+    status, slot = auto_book_if_available(plate_number)
+    if status in {"existing", "new"}:
+        return jsonify(
+            {
+                "action": "OPEN",
+                "slot": slot,
+                "plate_number": plate_number,
+                "message": f"Gate opened for slot {slot}.",
+            }
+        )
+
+    return jsonify(
+        {
+            "action": "FULL",
+            "slot": None,
+            "plate_number": plate_number,
+            "message": "Parking is full.",
+        }
+    )
+
+
+@app.route("/api/gate/exit", methods=["POST"])
+def gate_exit():
+    require_bridge_key()
+    payload = request.get_json(silent=True) or request.form
+    plate_number = (payload.get("plate_number", "") or "").strip()
+    if not plate_number:
+        return jsonify({"action": "NO_PLATE", "message": "Plate number is required."}), 400
+
+    released, slot = release_booking_by_plate(plate_number)
+    if released:
+        return jsonify(
+            {
+                "action": "OPEN",
+                "slot": slot,
+                "plate_number": plate_number,
+                "message": f"Exit cleared for slot {slot}.",
+            }
+        )
+
+    return jsonify(
+        {
+            "action": "NOT_FOUND",
+            "slot": None,
+            "plate_number": plate_number,
+            "message": "No active slot found for this plate.",
+        }
+    )
+
+
 @app.route("/book", methods=["POST"])
 def book_slot():
     owner_name = request.form.get("owner_name", "").strip()
@@ -40,6 +145,7 @@ def book_slot():
             "index.html",
             data=dashboard_data(),
             bridge_status=bridge.last_event,
+            static_css_url=static_css_url(),
             message="Name and car number are required.",
             success=False,
         )
@@ -53,6 +159,7 @@ def book_slot():
         "index.html",
         data=dashboard_data(),
         bridge_status=bridge.last_event,
+        static_css_url=static_css_url(),
         message=message,
         success=success,
     )
@@ -75,6 +182,7 @@ def release_slot():
         "index.html",
         data=dashboard_data(),
         bridge_status=bridge.last_event,
+        static_css_url=static_css_url(),
         message=message,
         success=success,
     )
