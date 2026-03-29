@@ -19,10 +19,12 @@ bool entryVehicleReported = false;
 bool exitVehicleReported = false;
 int availableSlots = TOTAL_SLOTS;
 
-int lastEntrySensorState = HIGH;
-int lastExitSensorState = HIGH;
-unsigned long lastEntrySensorChange = 0;
-unsigned long lastExitSensorChange = 0;
+int lastEntryReading = HIGH;
+int lastExitReading = HIGH;
+int stableEntryState = HIGH;
+int stableExitState = HIGH;
+unsigned long lastEntryChangeMs = 0;
+unsigned long lastExitChangeMs = 0;
 
 void showMessage(const String &line1, const String &line2) {
   lcd.clear();
@@ -67,8 +69,8 @@ void denyAccess(const String &message) {
 }
 
 void setup() {
-  pinMode(ENTRY_IR_SENSOR_PIN, INPUT);
-  pinMode(EXIT_IR_SENSOR_PIN, INPUT);
+  pinMode(ENTRY_IR_SENSOR_PIN, INPUT_PULLUP);
+  pinMode(EXIT_IR_SENSOR_PIN, INPUT_PULLUP);
   Serial.begin(9600);
 
   gateServo.attach(SERVO_PIN);
@@ -89,38 +91,46 @@ void loop() {
   int exitSensorValue = digitalRead(EXIT_IR_SENSOR_PIN);
   unsigned long currentTime = millis();
 
-  if (entrySensorValue != lastEntrySensorState) {
-    lastEntrySensorState = entrySensorValue;
-    lastEntrySensorChange = currentTime;
+  if (entrySensorValue != lastEntryReading) {
+    lastEntryReading = entrySensorValue;
+    lastEntryChangeMs = currentTime;
   }
 
-  if (exitSensorValue != lastExitSensorState) {
-    lastExitSensorState = exitSensorValue;
-    lastExitSensorChange = currentTime;
+  if (exitSensorValue != lastExitReading) {
+    lastExitReading = exitSensorValue;
+    lastExitChangeMs = currentTime;
   }
 
-  if (currentTime - lastEntrySensorChange > DEBOUNCE_DELAY_MS) {
-    if (entrySensorValue == LOW && !entryVehicleReported) {
+  if ((currentTime - lastEntryChangeMs) > DEBOUNCE_DELAY_MS && entrySensorValue != stableEntryState) {
+    stableEntryState = entrySensorValue;
+    Serial.print("[Arduino] Entry sensor stable state: ");
+    Serial.println(stableEntryState == LOW ? "LOW" : "HIGH");
+
+    if (stableEntryState == LOW && !entryVehicleReported) {
       Serial.println("VEHICLE_AT_GATE");
       Serial.println("[Arduino] Entry IR detected vehicle");
       showMessage("Vehicle Found", "Checking...");
       entryVehicleReported = true;
     }
 
-    if (entrySensorValue == HIGH) {
+    if (stableEntryState == HIGH) {
       entryVehicleReported = false;
     }
   }
 
-  if (currentTime - lastExitSensorChange > DEBOUNCE_DELAY_MS) {
-    if (exitSensorValue == LOW && !exitVehicleReported) {
+  if ((currentTime - lastExitChangeMs) > DEBOUNCE_DELAY_MS && exitSensorValue != stableExitState) {
+    stableExitState = exitSensorValue;
+    Serial.print("[Arduino] Exit sensor stable state: ");
+    Serial.println(stableExitState == LOW ? "LOW" : "HIGH");
+
+    if (stableExitState == LOW && !exitVehicleReported) {
       Serial.println("VEHICLE_EXIT");
       Serial.println("[Arduino] Exit IR detected vehicle");
       showMessage("Vehicle Exit", "Checking...");
       exitVehicleReported = true;
     }
 
-    if (exitSensorValue == HIGH) {
+    if (stableExitState == HIGH) {
       exitVehicleReported = false;
     }
   }
@@ -158,19 +168,6 @@ void loop() {
       Serial.print("[Arduino] Updated available slots: ");
       Serial.println(availableSlots);
       showAvailableSlots();
-    } else if (command.startsWith("STATUS:")) {
-        availableSlots = command.substring(7).toInt();
-
-        if (availableSlots < 0) {
-          availableSlots = 0;
-        }
-        if (availableSlots > TOTAL_SLOTS) {
-          availableSlots = TOTAL_SLOTS;
-        }
-
-        Serial.print("[Arduino] Updated available slots: ");
-        Serial.println(availableSlots);
-        showAvailableSlots();
     } else if (command == "FULL") {
       denyAccess("Parking Full");
     } else if (command == "DENY") {
