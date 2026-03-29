@@ -59,7 +59,7 @@ h1, h2 {
 }
 
 .stats {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
 }
 
 .panel-grid {
@@ -164,8 +164,20 @@ button.secondary {
     border-color: rgba(45, 106, 79, 0.35);
 }
 
-.slot.taken {
+.slot.reserved {
     border-color: rgba(214, 140, 69, 0.45);
+    background: rgba(214, 140, 69, 0.08);
+}
+
+.slot.parked {
+    border-color: rgba(23, 76, 56, 0.45);
+    background: rgba(45, 106, 79, 0.1);
+}
+
+.slot small {
+    color: var(--muted);
+    font-weight: 700;
+    letter-spacing: 0.06em;
 }
 
 table {

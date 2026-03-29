@@ -6,20 +6,80 @@
     <title>Smart Parking System</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script>
-        window.parkingStateVersion = "{{ data.state_version }}";
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function updateStats(data) {
+            document.getElementById("total-slots-count").textContent = data.total;
+            document.getElementById("available-slots-count").textContent = data.available;
+            document.getElementById("reserved-slots-count").textContent = data.reserved;
+            document.getElementById("occupied-slots-count").textContent = data.occupied;
+        }
+
+        function updateBridgeStatus(data) {
+            document.getElementById("bridge-status").textContent = data.bridge_status;
+        }
+
+        function updateSlots(data) {
+            const slotsContainer = document.getElementById("slots-container");
+            const slotsMarkup = Object.entries(data.slots)
+                .map(([slot, details]) => `
+                    <div class="slot ${details.status}">
+                        <strong>${escapeHtml(slot)}</strong>
+                        <span>${escapeHtml(details.plate_number || "FREE")}</span>
+                        <small>${escapeHtml(details.status.toUpperCase())}</small>
+                        ${details.plate_number ? `
+                            <form method="POST" action="/release-slot" class="secondary-form">
+                                <input type="hidden" name="slot" value="${escapeHtml(slot)}">
+                                <button type="submit" class="secondary">Empty Slot</button>
+                            </form>
+                        ` : ""}
+                    </div>
+                `)
+                .join("");
+            slotsContainer.innerHTML = slotsMarkup;
+        }
+
+        function updateRecentBookings(data) {
+            const bookingsTableBody = document.getElementById("recent-bookings-body");
+            if (!data.recent_bookings.length) {
+                bookingsTableBody.innerHTML = '<tr><td colspan="5">No bookings yet.</td></tr>';
+                return;
+            }
+
+            bookingsTableBody.innerHTML = data.recent_bookings
+                .map((booking) => `
+                    <tr>
+                        <td>${escapeHtml(booking.plate_number)}</td>
+                        <td>${escapeHtml(booking.owner_name)}</td>
+                        <td>${escapeHtml(booking.slot)}</td>
+                        <td>${escapeHtml(booking.status.toUpperCase())}</td>
+                        <td>${escapeHtml(booking.updated_at)}</td>
+                    </tr>
+                `)
+                .join("");
+        }
+
         async function pollParkingState() {
             try {
                 const response = await fetch("/state", { cache: "no-store" });
                 if (!response.ok) return;
                 const data = await response.json();
-                if (data.state_version !== window.parkingStateVersion) {
-                    window.location.reload();
-                }
+                updateStats(data);
+                updateBridgeStatus(data);
+                updateSlots(data);
+                updateRecentBookings(data);
             } catch (error) {
                 console.debug("State poll failed", error);
             }
         }
-        setInterval(pollParkingState, 3000);
+        setInterval(pollParkingState, 1000);
     </script>
 </head>
 <body>
@@ -33,15 +93,19 @@
             <div class="stats">
                 <div class="card">
                     <span>Total Slots</span>
-                    <strong>{{ data.total }}</strong>
+                    <strong id="total-slots-count">{{ data.total }}</strong>
                 </div>
                 <div class="card">
                     <span>Available</span>
-                    <strong>{{ data.available }}</strong>
+                    <strong id="available-slots-count">{{ data.available }}</strong>
+                </div>
+                <div class="card">
+                    <span>Reserved</span>
+                    <strong id="reserved-slots-count">{{ data.reserved }}</strong>
                 </div>
                 <div class="card">
                     <span>Occupied</span>
-                    <strong>{{ data.occupied }}</strong>
+                    <strong id="occupied-slots-count">{{ data.occupied }}</strong>
                 </div>
             </div>
         </section>
@@ -93,15 +157,16 @@
 
             <div class="panel">
                 <h2>Live Gate Status</h2>
-                <div class="status-box">{{ bridge_status }}</div>
+                <div class="status-box" id="bridge-status">{{ bridge_status }}</div>
 
                 <h2>Slot Status</h2>
-                <div class="slots">
-                    {% for slot, plate in data.slots.items() %}
-                        <div class="slot {{ 'taken' if plate else 'free' }}">
+                <div class="slots" id="slots-container">
+                    {% for slot, details in data.slots.items() %}
+                        <div class="slot {{ details.status }}">
                             <strong>{{ slot }}</strong>
-                            <span>{{ plate if plate else 'FREE' }}</span>
-                            {% if plate %}
+                            <span>{{ details.plate_number if details.plate_number else 'FREE' }}</span>
+                            <small>{{ details.status.upper() }}</small>
+                            {% if details.plate_number %}
                                 <form method="POST" action="/release-slot" class="secondary-form">
                                     <input type="hidden" name="slot" value="{{ slot }}">
                                     <button type="submit" class="secondary">Empty Slot</button>
@@ -121,20 +186,22 @@
                         <th>Plate Number</th>
                         <th>Owner</th>
                         <th>Slot</th>
-                        <th>Created At</th>
+                        <th>Status</th>
+                        <th>Updated At</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for plate, booking in data.bookings.items() %}
+                <tbody id="recent-bookings-body">
+                    {% for booking in data.recent_bookings %}
                         <tr>
-                            <td>{{ plate }}</td>
+                            <td>{{ booking.plate_number }}</td>
                             <td>{{ booking.owner_name }}</td>
                             <td>{{ booking.slot }}</td>
-                            <td>{{ booking.created_at }}</td>
+                            <td>{{ booking.status.upper() }}</td>
+                            <td>{{ booking.updated_at }}</td>
                         </tr>
                     {% else %}
                         <tr>
-                            <td colspan="4">No bookings yet.</td>
+                            <td colspan="5">No bookings yet.</td>
                         </tr>
                     {% endfor %}
                 </tbody>

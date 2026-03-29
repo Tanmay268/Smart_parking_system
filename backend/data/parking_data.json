@@ -2,23 +2,36 @@
   "slots": {
     "S1": "XY34CD9876",
     "S2": "JH78JG8765",
-    "S3": null,
+    "S3": "HR98AA7777",
     "S4": null
   },
   "bookings": {
-    "JH78JG8765": {
-      "owner_name": "rohan",
-      "phone": "",
-      "plate_number": "JH78JG8765",
-      "slot": "S2",
-      "created_at": "2026-03-10T02:05:15"
-    },
     "XY34CD9876": {
       "owner_name": "rohan patel",
       "phone": "",
       "plate_number": "XY34CD9876",
       "slot": "S1",
-      "created_at": "2026-03-10T02:05:31"
+      "status": "parked",
+      "created_at": "2026-03-10T02:05:31",
+      "last_gate_entry_at": null
+    },
+    "JH78JG8765": {
+      "owner_name": "rohan",
+      "phone": "",
+      "plate_number": "JH78JG8765",
+      "slot": "S2",
+      "status": "reserved",
+      "created_at": "2026-03-29T18:55:57",
+      "last_gate_entry_at": null
+    },
+    "HR98AA7777": {
+      "owner_name": "Tanmay Kaushik",
+      "phone": "",
+      "plate_number": "HR98AA7777",
+      "slot": "S3",
+      "status": "parked",
+      "created_at": "2026-03-29T18:57:38",
+      "last_gate_entry_at": "2026-03-29T18:57:56"
     }
   },
   "events": [
@@ -29,69 +42,33 @@
       "slot": "S1"
     },
     {
-      "time": "2026-03-10T01:59:13",
-      "type": "slot_cleared_from_dashboard",
-      "plate_number": "IMHIZABI234",
-      "slot": "S1"
-    },
-    {
-      "time": "2026-03-10T02:01:42",
-      "type": "auto_booked_at_gate",
-      "plate_number": "HI2ABL234",
-      "slot": "S1"
-    },
-    {
-      "time": "2026-03-10T02:01:53",
-      "type": "slot_cleared_from_dashboard",
-      "plate_number": "HI2ABL234",
-      "slot": "S1"
-    },
-    {
-      "time": "2026-03-10T02:02:07",
-      "type": "auto_booked_at_gate",
-      "plate_number": "MHI2ABL234",
-      "slot": "S1"
-    },
-    {
-      "time": "2026-03-10T02:02:08",
-      "type": "slot_cleared_from_dashboard",
-      "plate_number": "MHI2ABL234",
-      "slot": "S1"
-    },
-    {
-      "time": "2026-03-10T02:05:05",
-      "type": "booking_created",
-      "plate_number": "MH12AB1234",
-      "slot": "S1"
-    },
-    {
-      "time": "2026-03-10T02:05:15",
+      "time": "2026-03-29T18:55:57",
       "type": "booking_created",
       "plate_number": "JH78JG8765",
       "slot": "S2"
     },
     {
-      "time": "2026-03-10T02:05:20",
-      "type": "slot_cleared_from_dashboard",
-      "plate_number": "MH12AB1234",
-      "slot": "S1"
-    },
-    {
-      "time": "2026-03-10T02:05:31",
-      "type": "booking_created",
-      "plate_number": "XY34CD9876",
-      "slot": "S1"
-    },
-    {
-      "time": "2026-03-10T02:05:56",
+      "time": "2026-03-29T18:56:49",
       "type": "auto_booked_at_gate",
-      "plate_number": "MHIZABL234",
+      "plate_number": "HR98AA7777",
       "slot": "S3"
     },
     {
-      "time": "2026-03-10T02:06:41",
+      "time": "2026-03-29T18:57:21",
       "type": "slot_cleared_from_dashboard",
-      "plate_number": "MHIZABL234",
+      "plate_number": "HR98AA7777",
+      "slot": "S3"
+    },
+    {
+      "time": "2026-03-29T18:57:38",
+      "type": "booking_created",
+      "plate_number": "HR98AA7777",
+      "slot": "S3"
+    },
+    {
+      "time": "2026-03-29T18:57:56",
+      "type": "vehicle_entered",
+      "plate_number": "HR98AA7777",
       "slot": "S3"
     }
   ]

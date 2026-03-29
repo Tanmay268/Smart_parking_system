@@ -18,7 +18,10 @@ def state():
     return jsonify(
         {
             "slots": data["slots"],
+            "recent_bookings": data["recent_bookings"],
+            "total": data["total"],
             "available": data["available"],
+            "reserved": data["reserved"],
             "occupied": data["occupied"],
             "bridge_status": bridge.last_event,
             "state_version": data["state_version"],
